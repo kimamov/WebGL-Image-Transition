@@ -2,6 +2,7 @@ class Transition {
     private canvasRef: HTMLCanvasElement | null;
     private gl: WebGLRenderingContext | null;
     private imageArray: any [];
+    private imageDataArray: ImageBitmap[];
     private shaderProgram: WebGLProgram | null = null;
     private renderLoop: number | null=null;
 
@@ -31,9 +32,32 @@ class Transition {
         if(!this.canvasRef){
             throw new TypeError('could not find a valid canvas element with your provided canvas index')
         }
-        this.gl=this.canvasRef.getContext('webgl');   
+        this.gl=this.canvasRef.getContext('webgl');
+        this.imageArray=[imageOne, imageTwo];   
         this.create();
     }
+
+    private loadImages():Promise<ImageBitmap[]>{
+        return new Promise((resolve, reject)=>{
+            let imageCreatedCount=0;
+            let imageOutput;
+            this.imageArray.forEach((element, index)=>{
+                let image=new Image();
+                image.src=element;
+                image.onload=()=>{
+                    //imageOutput.push((image))
+                    imageOutput[index]=image;
+                    imageCreatedCount++;
+                    if(imageCreatedCount===this.imageArray.length){
+                        resolve(imageOutput)
+                    }
+                }
+                image.onerror=()=>reject()
+            }) 
+        })
+        
+    }
+    
 
 
     private setCanvasDim() {
@@ -41,11 +65,18 @@ class Transition {
         this.canvasRef.height = this.canvasRef.clientHeight;
     }
 
-    private create() {
+    private async create() {
         if (this.canvasRef) {
-            /* set renderer dimensions */
-            this.setCanvasDim();
-            this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
+            try {
+                /* set renderer dimensions */
+                this.setCanvasDim();
+                this.imageDataArray=await this.loadImages();
+                this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
+            } catch (error) {
+                console.log('could not load image')
+                throw error
+            }
+            
         } else console.log("no reference to the canvas was found")
     }
 
@@ -161,8 +192,9 @@ class Transition {
         if (succes) {
             return shader;
         }
+        const info=gl.getShaderInfoLog(shader)
         gl.deleteShader(shader);
-        throw `could not compile shader: ${gl.getShaderInfoLog(shader)}`
+        throw `could not compile shader: ${info}`
     }
     
     private createProgram = (gl: WebGLRenderingContext, vertexShader: WebGLShader, fragmentShader: WebGLShader) => {
@@ -174,8 +206,9 @@ class Transition {
         if (success) {
             return program;
         }
+        const info=gl.getProgramInfoLog(program);
         gl.deleteProgram(program);
-        throw `could not compile shader: ${gl.getProgramInfoLog(program)}`
+        throw `could not compile shader: ${info}`
     }
     
     
