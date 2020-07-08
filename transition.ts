@@ -1,14 +1,30 @@
-import { frag, vert } from './shaders';
-import { createShaderProgram } from './util';
-
-
-export class Transition {
+class Transition {
     private canvasRef: HTMLCanvasElement | null;
     private gl: WebGLRenderingContext | null;
     private imageArray: any [];
     private shaderProgram: WebGLProgram | null = null;
     private renderLoop: number | null=null;
 
+    private frag: string= `
+    precision mediump float;
+    uniform float u_time;
+    uniform vec2 u_resolution;
+    float aspectRatio=u_resolution.x / u_resolution.y;
+    
+    void main() {
+        vec2 uv=gl_FragCoord.xy / u_resolution;
+        
+        gl_FragColor = vec4(1.0, 0.3, 0, 1.0);
+    }
+    `
+    
+    private vert: string= `
+    precision mediump float;
+    attribute vec4 a_position;
+    void main() {
+        gl_Position = a_position;
+    }
+    `
 
     constructor(canvasIndex: string, imageOne: any, imageTwo: any, displacementImage: any){
         this.canvasRef=document.getElementById(canvasIndex) as HTMLCanvasElement;
@@ -16,24 +32,27 @@ export class Transition {
             throw new TypeError('could not find a valid canvas element with your provided canvas index')
         }
         this.gl=this.canvasRef.getContext('webgl');   
+        this.create();
     }
-    setCanvasDim() {
+
+
+    private setCanvasDim() {
         this.canvasRef.width = this.canvasRef.clientWidth;
         this.canvasRef.height = this.canvasRef.clientHeight;
     }
 
-    create() {
+    private create() {
         if (this.canvasRef) {
             /* set renderer dimensions */
             this.setCanvasDim();
-            this.shaderProgram = createShaderProgram(this.gl, vert, frag);
+            this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
         } else console.log("no reference to the canvas was found")
     }
 
 
 
 
-    render = () => {
+    public render = () => {
         if (this.gl && this.shaderProgram) {
             let positionLocation = this.gl.getAttribLocation(this.shaderProgram, "a_position");
 
@@ -57,12 +76,8 @@ export class Transition {
             // look up resolution uniform location
             const uResolutionLocation = this.gl.getUniformLocation(this.shaderProgram, "u_resolution");
 
-            // look up orb uniform array location
-            const uOrbArrayLocation = this.gl.getUniformLocation(this.shaderProgram, "u_orbData");
+            const uTimeLocation = this.gl.getUniformLocation(this.shaderProgram, "u_time");
 
-            const uDistModifierLocation = this.gl.getUniformLocation(this.shaderProgram, "u_distanceModifier");
-
-            this.gl.uniform1f(uDistModifierLocation, 5.0);
             // set resolution
             this.gl.uniform2fv(uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
 
@@ -101,11 +116,16 @@ export class Transition {
 
             }
 
-
+            let startTime=Date.now();
+            let lastRenderTime=startTime;
+            let currentRenderTime=0;
+            let deltaTime=0;
             const drawLoop = (gl: WebGLRenderingContext): void => {
+                currentRenderTime=Date.now();
+                //deltaTime=currentRenderTime-lastRenderTime;
+                this.gl.uniform1f(uTimeLocation, currentRenderTime-startTime);
                 // Draw the rectangle.
                 gl.drawArrays(gl.TRIANGLES, 0, 6);
-
                 this.renderLoop = requestAnimationFrame(() => drawLoop(gl));
             }
             drawLoop(this.gl);
@@ -115,11 +135,53 @@ export class Transition {
 
 
 
-    destroy = () => {
+    public destroy = () => {
         if (this.gl) {
             cancelAnimationFrame(this.renderLoop);
             this.gl.deleteProgram(this.shaderProgram);
         }
     }
 
+    private createShaderProgram = (gl: WebGLRenderingContext, vertexShaderSource: string, fragmentShaderSource: string):WebGLProgram => {
+
+        const vertexShader = this.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource)
+        const fragmentShader = this.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource)
+    
+        const program = this.createProgram(gl, vertexShader, fragmentShader);
+    
+        return program
+    }
+    
+    
+    private createShader = (gl: WebGLRenderingContext, type: number, source: string): WebGLShader => {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        const succes = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+        if (succes) {
+            return shader;
+        }
+        gl.deleteShader(shader);
+        throw `could not compile shader: ${gl.getShaderInfoLog(shader)}`
+    }
+    
+    private createProgram = (gl: WebGLRenderingContext, vertexShader: WebGLShader, fragmentShader: WebGLShader) => {
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        const success = gl.getProgramParameter(program, gl.LINK_STATUS);
+        if (success) {
+            return program;
+        }
+        gl.deleteProgram(program);
+        throw `could not compile shader: ${gl.getProgramInfoLog(program)}`
+    }
+    
+    
+     
+    
+
 }
+
+
