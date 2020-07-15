@@ -1,11 +1,17 @@
 class Transition {
     private canvasRef: HTMLCanvasElement;
     private gl: WebGLRenderingContext;
+
     private imageArray: any[];
     private imageDataArray: HTMLImageElement[] | null = null;
-    private shaderProgram: WebGLProgram | null = null;
+
     private renderLoop: number | null = null;
-    private renderer: any;
+    private shaderProgram: WebGLProgram | null = null;
+    private textures: WebGLTexture[] = []
+    // uniforms that can be update inside render
+    private uResolutionLocation: any;
+    private uImage0Location: any;
+    private uImage1Location: any;
 
     private frag: string = `
         precision mediump float;
@@ -17,7 +23,7 @@ class Transition {
         void main() {
             vec4 color0 = texture2D(u_image0, v_texCoord);
             vec4 color1 = texture2D(u_image1, v_texCoord);
-            gl_FragColor = mix(color0, color1, 0.4);
+            gl_FragColor = mix(color0, color1, 0.1);
         }
     
     `
@@ -25,11 +31,13 @@ class Transition {
     private vert: string = `
         precision mediump float;
         attribute vec4 a_position;
+        attribute vec2 a_texCoord;
         varying vec2 v_texCoord;
 
         void main() {
             gl_Position = a_position;
-            v_texCoord = a_position.xy * .5 + .5;  // because we know we're using a -1 + 1 quad
+            //v_texCoord = a_texCoord * .5 + .5;  // because we know we're using a -1 + 1 quad
+            v_texCoord=(a_texCoord * vec2(1.0, -1.0)* .5 + .5);
         }
     `
 
@@ -87,67 +95,51 @@ class Transition {
     }
 
     private async create() {
-        if (this.canvasRef) {
-            try {
-                /* set renderer dimensions */
-                this.setCanvasDim();
-                this.imageDataArray = await this.loadImages();
-                this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
-                this.renderer = this.createRenderer(this.imageDataArray);
-            } catch (error) {
-                //console.log('could not load image')
-                console.dir(error)
-                //throw error
-            }
+        try {
+            /* set renderer dimensions */
+            this.setCanvasDim();
+            this.imageDataArray = await this.loadImages();
+            this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
+            this.createRenderer(this.imageDataArray);
+        } catch (error) {
+            console.dir(error)
+        }
 
-        } else console.log("no reference to the canvas was found")
     }
 
 
 
 
     private createRenderer(images: any) {
-        if (!this.gl || !this.shaderProgram) throw new Error('failed')
+        if (!this.gl || !this.shaderProgram) throw new Error('failed');
         if (images.length < 2) throw new Error('at least 2 images are required');
+        // get attribute locations
         let positionLocation = this.gl.getAttribLocation(this.shaderProgram, "a_position");
-
+        let texCoordLocation = this.gl.getAttribLocation(this.shaderProgram, 'a_texCoord');
         // Create a buffer to put three 2d clip space points in 
         let positionBuffer = this.gl.createBuffer();
-
+        // bind position buffer
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([
+        const fullScreenBuffer = new Float32Array([
             -1, -1, // tri 1
             1, -1,
             -1, 1,
             -1, 1, // tri 2
             1, -1,
             1, 1,
-        ]), this.gl.STATIC_DRAW);
-
-        // Tell it to use our program (pair of shaders)
-        this.gl.useProgram(this.shaderProgram);
-
-
-        // look up resolution uniform location
-        this.uResolutionLocation = this.gl.getUniformLocation(this.shaderProgram, "u_resolution");
-
-        this.uTimeLocation = this.gl.getUniformLocation(this.shaderProgram, "u_time");
-
-        // set resolution
-        this.gl.uniform2fv(this.uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
-
-
-
-        // Turn on the position attribute
-        this.gl.enableVertexAttribArray(positionLocation);
-
-        // Bind the position buffer.
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
+        ]);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, fullScreenBuffer, this.gl.STATIC_DRAW);
+        // Create a buffer to put three 2d clip space points in 
+        let textureBuffer = this.gl.createBuffer();
+        // bind texture buffer
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, textureBuffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, fullScreenBuffer, this.gl.STATIC_DRAW);
 
         // create texture for every image in images array
         this.textures = [];
         for (let i = 0; i < images.length; ++i) {
             let texture: WebGLTexture | null = this.gl.createTexture();
+            if (!texture) throw new Error('failed to create texture')
             this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
 
             // Set the parameters so we can render any size image.
@@ -164,11 +156,26 @@ class Transition {
         }
 
 
+
+        // look up resolution uniform location
+        this.uResolutionLocation = this.gl.getUniformLocation(this.shaderProgram, "u_resolution");
+
         // lookup the sampler locations.
-        this.u_image0Location = this.gl.getUniformLocation(this.shaderProgram, "u_image0");
-        this.u_image1Location = this.gl.getUniformLocation(this.shaderProgram, "u_image1");
+        this.uImage0Location = this.gl.getUniformLocation(this.shaderProgram, "u_image0");
+        this.uImage1Location = this.gl.getUniformLocation(this.shaderProgram, "u_image1");
+
+        this.gl.viewport(0, 0, this.canvasRef.width, this.canvasRef.height);
+        // Clear the canvas
+        this.gl.clearColor(0, 0, 0, 0);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+
+        this.gl.useProgram(this.shaderProgram);
 
 
+        // Turn on the texturecoord attribute
+        this.gl.enableVertexAttribArray(positionLocation);
+
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer)
         // Tell the position attribute how to get data out of positionBuffer (ARRAY_BUFFER)
         let size = 2; // 2 components per iteration
         let type = this.gl.FLOAT; // the data is 32bit floats
@@ -178,14 +185,19 @@ class Transition {
         this.gl.vertexAttribPointer(positionLocation, size, type, normalize, stride, offset);
 
 
-        this.gl.viewport(0, 0, this.canvasRef.width, this.canvasRef.height);
-        // Clear the canvas
-        this.gl.clearColor(0, 0, 0, 0);
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+        // Turn on the texturecoord attribute
+        this.gl.enableVertexAttribArray(texCoordLocation);
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, textureBuffer)
+
+        this.gl.vertexAttribPointer(texCoordLocation, size, type, normalize, stride, offset);
+
+
+        // set resolution
+        this.gl.uniform2fv(this.uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
 
         // set which texture units to render with.
-        this.gl.uniform1i(this.u_image0Location, 0);  // texture unit 0
-        this.gl.uniform1i(this.u_image1Location, 1);  // texture unit 1
+        this.gl.uniform1i(this.uImage0Location, 0);  // texture unit 0
+        this.gl.uniform1i(this.uImage1Location, 1);  // texture unit 1
         // Set each texture unit to use a particular texture.
         this.gl.activeTexture(this.gl.TEXTURE0);
         this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[0]);
@@ -203,34 +215,18 @@ class Transition {
             }
 
         }
-
-        /* let startTime = Date.now();
-        let lastRenderTime = startTime;
-        let currentRenderTime = 0;
-        let deltaTime = 0; */
-        this.startRender = function () {
-            /* currentRenderTime = Date.now(); */
-            //deltaTime=currentRenderTime-lastRenderTime;
-            //this.gl.uniform1f(this.uTimeLocation, currentRenderTime - startTime);
-            // Draw the rectangle.
-            /*  */
-            this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
-            this.renderLoop = requestAnimationFrame(() => startRender());
-        }
-
-
+        this.gl.useProgram(this.shaderProgram);
 
     }
 
     private render = () => {
-        if (this.renderer || true) {
-            console.log("was called reached")
-            this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
-            this.renderLoop = requestAnimationFrame(() => startRender());
-        }
+        this.gl.useProgram(this.shaderProgram);
+        this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+        this.renderLoop = requestAnimationFrame(() => this.render());
     }
-    public start() {
 
+    public start() {
+        this.render();
     }
 
     public destroy = () => {
