@@ -2,16 +2,24 @@ class Transition {
     private canvasRef: HTMLCanvasElement;
     private gl: WebGLRenderingContext;
 
-    private imageArray: any[];
+    private displacementImage: HTMLImageElement | null = null;
     private imageDataArray: HTMLImageElement[] | null = null;
 
     private renderLoop: number | null = null;
     private shaderProgram: WebGLProgram | null = null;
     private textures: WebGLTexture[] = []
+    private displacementTexture: WebGLTexture | null = null;
     // uniforms that can be update inside render
     private uResolutionLocation: any;
+    private uProgressLocation: any;
     private uImage0Location: any;
     private uImage1Location: any;
+    private uImageDisplaceLocation: any;
+
+    private transitionFinished: boolean = false;
+    private transitionActive: boolean = false;
+    private transitionTick: number = 1000;
+    private transitionProgress: number = 0;
 
     private frag: string = `
         precision mediump float;
@@ -19,11 +27,17 @@ class Transition {
         uniform sampler2D u_tex;
         uniform sampler2D u_image0;
         uniform sampler2D u_image1;
+        uniform sampler2D u_imageDisplace;
         
+        uniform float u_progress;
+
         void main() {
-            vec4 color0 = texture2D(u_image0, v_texCoord);
-            vec4 color1 = texture2D(u_image1, v_texCoord);
-            gl_FragColor = mix(color0, color1, 0.1);
+            float displacement=texture2D(u_imageDisplace, v_texCoord).r * 0.3;
+            vec2 uvFromDist=vec2(v_texCoord.x+u_progress*displacement, v_texCoord.y);
+            vec2 uvToDist=vec2(v_texCoord.x-(1.0-u_progress)*displacement, v_texCoord.y);
+            vec4 colorFrom = texture2D(u_image0, uvFromDist);
+            vec4 colorTo = texture2D(u_image1, uvToDist);
+            gl_FragColor = mix(colorFrom, colorTo, u_progress);
         }
     
     `
@@ -31,17 +45,15 @@ class Transition {
     private vert: string = `
         precision mediump float;
         attribute vec4 a_position;
-        attribute vec2 a_texCoord;
         varying vec2 v_texCoord;
 
         void main() {
             gl_Position = a_position;
-            //v_texCoord = a_texCoord * .5 + .5;  // because we know we're using a -1 + 1 quad
-            v_texCoord=(a_texCoord * vec2(1.0, -1.0)* .5 + .5);
+            v_texCoord=(a_position.xy * vec2(1.0, -1.0)* .5 + .5);
         }
     `
 
-    constructor(canvasIndex: string, imageOne: any, imageTwo: any, displacementImage: any) {
+    constructor(canvasIndex: string, imageOne: any, imageTwo: any, displacementImage: any, duration: number = 1400) {
         if (!canvasIndex) {
             throw new TypeError('id of canvas element is required');
         }
@@ -59,17 +71,17 @@ class Transition {
         if (!this.gl) {
             throw new TypeError('could not find a valid WebGL Rendering Context')
         }
+        const frameTime = 1000 / 60;
+        this.transitionTick = 1 / duration * frameTime;
 
-        this.imageArray = [imageOne, imageTwo];
-        this.create();
+        this.create([imageOne, imageTwo], displacementImage);
     }
 
-    private loadImages(): Promise<HTMLImageElement[]> {
+    private loadImages(imageArray: string[]): Promise<HTMLImageElement[]> {
         return new Promise((resolve, reject) => {
             let imageCreatedCount = 0;
             let imageOutput: HTMLImageElement[] = [];
-            this.imageArray.forEach((element, index) => {
-                console.log(`imageIndex: ${index}`)
+            imageArray.forEach((element, index) => {
                 let image = new Image();
                 image.src = element;
                 image.onload = () => {
@@ -77,7 +89,7 @@ class Transition {
                     //imageOutput.push((image))
                     imageOutput[index] = image;
                     imageCreatedCount++;
-                    if (imageCreatedCount === this.imageArray.length) {
+                    if (imageCreatedCount === imageArray.length) {
                         resolve(imageOutput)
                     }
                 }
@@ -94,13 +106,22 @@ class Transition {
         this.canvasRef.height = this.canvasRef.clientHeight;
     }
 
-    private async create() {
+    private async create(imageArray: string[], displacementImage: string) {
         try {
             /* set renderer dimensions */
             this.setCanvasDim();
-            this.imageDataArray = await this.loadImages();
+
+            const extendedImageArray = [...imageArray, displacementImage];
+            const loadedImages = await this.loadImages(extendedImageArray);
+            this.displacementImage = loadedImages.pop() as HTMLImageElement;
+            this.imageDataArray = loadedImages;
+
             this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
-            this.createRenderer(this.imageDataArray);
+
+            this.createRenderer(this.imageDataArray, this.displacementImage);
+            this.canvasRef.addEventListener('click', () => {
+                this.start();
+            })
         } catch (error) {
             console.dir(error)
         }
@@ -110,12 +131,12 @@ class Transition {
 
 
 
-    private createRenderer(images: any) {
+    private createRenderer(images: any, displacementImage: any) {
+        console.log(this.shaderProgram)
         if (!this.gl || !this.shaderProgram) throw new Error('failed');
         if (images.length < 2) throw new Error('at least 2 images are required');
         // get attribute locations
         let positionLocation = this.gl.getAttribLocation(this.shaderProgram, "a_position");
-        let texCoordLocation = this.gl.getAttribLocation(this.shaderProgram, 'a_texCoord');
         // Create a buffer to put three 2d clip space points in 
         let positionBuffer = this.gl.createBuffer();
         // bind position buffer
@@ -129,16 +150,12 @@ class Transition {
             1, 1,
         ]);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, fullScreenBuffer, this.gl.STATIC_DRAW);
-        // Create a buffer to put three 2d clip space points in 
-        let textureBuffer = this.gl.createBuffer();
-        // bind texture buffer
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, textureBuffer);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, fullScreenBuffer, this.gl.STATIC_DRAW);
+        this.gl.useProgram(this.shaderProgram);
 
         // create texture for every image in images array
         this.textures = [];
-        for (let i = 0; i < images.length; ++i) {
-            let texture: WebGLTexture | null = this.gl.createTexture();
+        for (let i = 0; i < images.length + 1; ++i) {
+            const texture: WebGLTexture | null = this.gl.createTexture();
             if (!texture) throw new Error('failed to create texture')
             this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
 
@@ -148,6 +165,12 @@ class Transition {
             this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
             this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
 
+            if (i === images.length) {
+                // after all image textures are created create the displacement texture
+                this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, displacementImage);
+                this.displacementTexture = texture;
+                continue;
+            }
             // Upload the image into the texture.
             this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, images[i]);
 
@@ -155,26 +178,33 @@ class Transition {
             this.textures.push(texture);
         }
 
-
-
         // look up resolution uniform location
         this.uResolutionLocation = this.gl.getUniformLocation(this.shaderProgram, "u_resolution");
-
+        this.uProgressLocation = this.gl.getUniformLocation(this.shaderProgram, "u_progress");
         // lookup the sampler locations.
         this.uImage0Location = this.gl.getUniformLocation(this.shaderProgram, "u_image0");
         this.uImage1Location = this.gl.getUniformLocation(this.shaderProgram, "u_image1");
+        // lookup the sampler location of the displacement texture
+        this.uImageDisplaceLocation = this.gl.getUniformLocation(this.shaderProgram, "u_imageDisplace");
 
-        this.gl.viewport(0, 0, this.canvasRef.width, this.canvasRef.height);
-        // Clear the canvas
-        this.gl.clearColor(0, 0, 0, 0);
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-
-        this.gl.useProgram(this.shaderProgram);
-
+        // set resolution
+        this.gl.uniform2fv(this.uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
+        // set progress to 0
+        this.gl.uniform1f(this.uProgressLocation, 0);
+        // set which texture units to render with.
+        this.gl.uniform1i(this.uImage0Location, 0);  // texture unit 0
+        this.gl.uniform1i(this.uImage1Location, 1);  // texture unit 1
+        this.gl.uniform1i(this.uImageDisplaceLocation, 2);  // texture unit 1
+        // Set each texture unit to use a particular texture.
+        this.gl.activeTexture(this.gl.TEXTURE0);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[0]);
+        this.gl.activeTexture(this.gl.TEXTURE1);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[1]);
+        this.gl.activeTexture(this.gl.TEXTURE2);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.displacementTexture);
 
         // Turn on the texturecoord attribute
         this.gl.enableVertexAttribArray(positionLocation);
-
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer)
         // Tell the position attribute how to get data out of positionBuffer (ARRAY_BUFFER)
         let size = 2; // 2 components per iteration
@@ -185,48 +215,56 @@ class Transition {
         this.gl.vertexAttribPointer(positionLocation, size, type, normalize, stride, offset);
 
 
-        // Turn on the texturecoord attribute
-        this.gl.enableVertexAttribArray(texCoordLocation);
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, textureBuffer)
-
-        this.gl.vertexAttribPointer(texCoordLocation, size, type, normalize, stride, offset);
-
-
-        // set resolution
-        this.gl.uniform2fv(this.uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
-
-        // set which texture units to render with.
-        this.gl.uniform1i(this.uImage0Location, 0);  // texture unit 0
-        this.gl.uniform1i(this.uImage1Location, 1);  // texture unit 1
-        // Set each texture unit to use a particular texture.
-        this.gl.activeTexture(this.gl.TEXTURE0);
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[0]);
-        this.gl.activeTexture(this.gl.TEXTURE1);
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[1]);
+        this.gl.viewport(0, 0, this.canvasRef.width, this.canvasRef.height);
+        // Clear the canvas
+        this.gl.clearColor(0, 0, 0, 0);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+        this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
 
         window.onresize = () => {
             if (this.gl) {
                 this.setCanvasDim()
-
-                /* recover orbs that might be off screen */
-
                 this.gl.uniform2fv(this.uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
                 this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
             }
-
         }
-        this.gl.useProgram(this.shaderProgram);
 
     }
 
-    private render = () => {
-        this.gl.useProgram(this.shaderProgram);
+    private render() {
+        this.gl.uniform1f(this.uProgressLocation, this.transitionProgress);
         this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
-        this.renderLoop = requestAnimationFrame(() => this.render());
+    }
+    public transitionForwards() {
+        if (this.transitionProgress <= 1.0) {
+            this.transitionProgress += this.transitionTick;
+            this.render();
+            this.renderLoop = requestAnimationFrame(() => this.transitionForwards());
+        } else {
+            this.transitionActive = false
+            this.transitionFinished = true;
+        }
+    }
+    public transitionBackwards() {
+        if (this.transitionProgress >= 0) {
+            this.transitionProgress -= this.transitionTick;
+            this.render();
+            this.renderLoop = requestAnimationFrame(() => this.transitionBackwards());
+        } else {
+            this.transitionActive = false
+            this.transitionFinished = false;
+        }
     }
 
     public start() {
-        this.render();
+        if (this.transitionActive) return;
+        if (!this.shaderProgram) throw 'renderer not ready yet'
+        if (this.renderLoop) cancelAnimationFrame(this.renderLoop);
+        this.transitionActive = true;
+        if (this.transitionFinished) {
+            return this.transitionBackwards();
+        }
+        this.transitionForwards();
     }
 
     public destroy = () => {
@@ -275,8 +313,6 @@ class Transition {
         gl.deleteProgram(program);
         throw `could not compile shader: ${info}`
     }
-
-
 }
 
 
