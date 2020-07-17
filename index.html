@@ -19,8 +19,8 @@
 
     #myCanvas {
         display: block;
-        height: 100%;
-        width: 100%;
+        height: 20rem;
+        width: 38rem;
         margin: 0;
     }
 </style>
@@ -31,8 +31,8 @@
 
     </script>
     <script>
-        const transition = new Transition("myCanvas", "./adler.jpg", "./coon.png", "./dis.jpg");
-        const canvas = transition.canvasRef;
+        const canvas = document.querySelector('#myCanvas');
+        const transition = new Transition(canvas, "./adler.jpg", "./coon.png");
         canvas.addEventListener('click', () => {
             if (transition.transitionFinished) {
                 return transition.reverse()

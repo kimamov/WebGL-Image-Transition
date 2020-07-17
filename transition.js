@@ -9,13 +9,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 class Transition {
-    constructor(canvasIndex, imageOne, imageTwo, displacementImage, duration = 1400) {
-        this.displacementImage = null;
-        this.imageDataArray = [];
+    constructor(canvasElement, imageOne, imageTwo, options = {}) {
         this.renderLoop = null;
         this.shaderProgram = null;
-        this.textures = [];
-        this.displacementTexture = null;
+        /*
+        private uMatrix: any;
+        private uImage0Location: any;
+        private uImage1Location: any;
+        private uImageDisplaceLocation: any;
+        */
         /*  private canvasAspect: number = 1;
          private imageAspect: number = 1; */
         this.transitionFinished = false;
@@ -53,16 +55,22 @@ class Transition {
             v_texCoord=a_position.xy* .5 + .5;
         }
     `;
-        if (!canvasIndex) {
+        let displacementImage;
+        if (!canvasElement) {
             throw new TypeError('id of canvas element is required');
         }
-        if (!displacementImage) {
+        // get displacement image from TransitionOptions or use default
+        if (!options.displacementImage) {
             console.warn('no displacement image provided. Default image will be used but consider adding one for better effects');
+            displacementImage = './dis.jpg';
         }
+        else
+            displacementImage = options.displacementImage;
+        // check if 2 images are provided
         if (!imageOne || !imageTwo) {
             throw new TypeError('2 images to transition between are required');
         }
-        this.canvasRef = document.getElementById(canvasIndex);
+        this.canvasRef = canvasElement;
         if (!this.canvasRef) {
             throw new TypeError('could not find a valid canvas element with your provided canvas index');
         }
@@ -71,8 +79,10 @@ class Transition {
             throw new TypeError('could not find a valid WebGL Rendering Context');
         }
         // calc the progress that needs to happen every frame to finish the transition in the set time
+        let duration = options.duration || 1200; // if no duration is provided take 1200ms / 1.2 seconds
         const frameTime = 1000 / 60;
         this.transitionTick = 1 / duration * frameTime;
+        // do some async stuff load images create renderer etc
         this.create([imageOne, imageTwo], displacementImage);
     }
     loadImages(imageArray) {
@@ -97,23 +107,17 @@ class Transition {
         this.canvasRef.width = this.canvasRef.clientWidth;
         this.canvasRef.height = this.canvasRef.clientHeight;
     }
-    create(imageArray, displacementImage) {
+    create(imagesSrc, displacementImageSrc) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 /* set renderer dimensions */
                 this.setCanvasDim();
-                const extendedImageArray = [...imageArray, displacementImage];
+                const extendedImageArray = [...imagesSrc, displacementImageSrc];
                 const loadedImages = yield this.loadImages(extendedImageArray);
-                this.displacementImage = loadedImages.pop();
-                this.imageDataArray = loadedImages;
+                const displacementImage = loadedImages.pop();
+                const images = loadedImages;
                 this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
-                this.createRenderer(this.imageDataArray, this.displacementImage);
-                /* this.canvasRef.addEventListener('mouseenter', () => {
-                    this.start();
-                })
-                this.canvasRef.addEventListener('mouseleave', () => {
-                    this.reverse();
-                }) */
+                this.createRenderer(images, displacementImage);
             }
             catch (error) {
                 console.dir(error);
@@ -121,7 +125,6 @@ class Transition {
         });
     }
     createRenderer(images, displacementImage) {
-        console.log(this.shaderProgram);
         if (!this.gl || !this.shaderProgram)
             throw new Error('failed');
         if (images.length < 2)
@@ -143,7 +146,8 @@ class Transition {
         this.gl.bufferData(this.gl.ARRAY_BUFFER, fullScreenBuffer, this.gl.STATIC_DRAW);
         this.gl.useProgram(this.shaderProgram);
         // create texture for every image in images array
-        this.textures = [];
+        const textures = [];
+        let displacementTexture = null;
         for (let i = 0; i < images.length + 1; ++i) {
             const texture = this.gl.createTexture();
             if (!texture)
@@ -157,40 +161,60 @@ class Transition {
             if (i === images.length) {
                 // after all image textures are created create the displacement texture
                 this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, displacementImage);
-                this.displacementTexture = texture;
+                displacementTexture = texture;
                 continue;
             }
             // Upload the image into the texture.
             this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, images[i]);
             // add the texture to the array of textures.
-            this.textures.push(texture);
+            textures.push(texture);
         }
         // look up resolution uniform location
         this.uResolutionLocation = this.gl.getUniformLocation(this.shaderProgram, "u_resolution");
         this.uProgressLocation = this.gl.getUniformLocation(this.shaderProgram, "u_progress");
-        this.uMatrix = this.gl.getUniformLocation(this.shaderProgram, "u_matrix");
+        const uMatrix = this.gl.getUniformLocation(this.shaderProgram, "u_matrix");
+        const updateScaleMode = () => {
+            // function to update the image scaling to cover
+            const image = images[0];
+            if (!image)
+                throw new TypeError('failed to get image');
+            const canvasAspect = this.canvasRef.clientWidth / this.canvasRef.clientHeight;
+            const imageAspect = image.width / image.height;
+            let scaleX = imageAspect / canvasAspect;
+            let scaleY = 1;
+            if (scaleX < 1) {
+                scaleY = 1 / scaleX;
+                scaleX = 1;
+            }
+            this.gl.uniformMatrix4fv(uMatrix, false, new Float32Array([
+                scaleX, 0, 0, 0,
+                0, -scaleY, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1,
+            ]));
+        };
         // lookup the sampler locations.
-        this.uImage0Location = this.gl.getUniformLocation(this.shaderProgram, "u_image0");
-        this.uImage1Location = this.gl.getUniformLocation(this.shaderProgram, "u_image1");
+        const uImage0Location = this.gl.getUniformLocation(this.shaderProgram, "u_image0");
+        const uImage1Location = this.gl.getUniformLocation(this.shaderProgram, "u_image1");
         // lookup the sampler location of the displacement texture
-        this.uImageDisplaceLocation = this.gl.getUniformLocation(this.shaderProgram, "u_imageDisplace");
+        const uImageDisplaceLocation = this.gl.getUniformLocation(this.shaderProgram, "u_imageDisplace");
         // set resolution
         this.gl.uniform2fv(this.uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
         // set progress to 0
         this.gl.uniform1f(this.uProgressLocation, 0);
         // set the matrix so the image will be scaled to cover the available space
-        this.updateScaleMode();
+        updateScaleMode();
         // set which texture units to render with.
-        this.gl.uniform1i(this.uImage0Location, 0); // texture unit 0
-        this.gl.uniform1i(this.uImage1Location, 1); // texture unit 1
-        this.gl.uniform1i(this.uImageDisplaceLocation, 2); // texture unit 1
+        this.gl.uniform1i(uImage0Location, 0); // texture unit 0
+        this.gl.uniform1i(uImage1Location, 1); // texture unit 1
+        this.gl.uniform1i(uImageDisplaceLocation, 2); // texture unit 1
         // Set each texture unit to use a particular texture.
         this.gl.activeTexture(this.gl.TEXTURE0);
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[0]);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, textures[0]);
         this.gl.activeTexture(this.gl.TEXTURE1);
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[1]);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, textures[1]);
         this.gl.activeTexture(this.gl.TEXTURE2);
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.displacementTexture);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, displacementTexture);
         // Turn on the texturecoord attribute
         this.gl.enableVertexAttribArray(positionLocation);
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
@@ -209,32 +233,12 @@ class Transition {
         window.onresize = () => {
             if (this.gl) {
                 this.setCanvasDim();
-                this.updateScaleMode();
+                updateScaleMode();
                 this.gl.uniform2fv(this.uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
                 this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
                 this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
             }
         };
-    }
-    updateScaleMode() {
-        // function to update the image scaling to cover
-        const image = this.imageDataArray[0];
-        if (!image)
-            throw new TypeError('failed to get image');
-        const canvasAspect = this.canvasRef.clientWidth / this.canvasRef.clientHeight;
-        const imageAspect = image.width / image.height;
-        let scaleX = imageAspect / canvasAspect;
-        let scaleY = 1;
-        if (scaleX < 1) {
-            scaleY = 1 / scaleX;
-            scaleX = 1;
-        }
-        this.gl.uniformMatrix4fv(this.uMatrix, false, new Float32Array([
-            scaleX, 0, 0, 0,
-            0, -scaleY, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1,
-        ]));
     }
     render() {
         this.gl.uniform1f(this.uProgressLocation, this.transitionProgress);
@@ -274,17 +278,6 @@ class Transition {
             this.transitionFinished = false;
         }
     }
-    /* public start() {
-        //if (this.transitionActive) return;
-        if (!this.shaderProgram) throw 'renderer not ready yet'
-        if (this.renderLoop) cancelAnimationFrame(this.renderLoop);
-        this.transitionActive = true;
-        if (this.transitionFinished) {
-            return this.transitionBackwards();
-        }
-        this.transitionForwards();
-    }
- */
     destroy() {
         if (this.gl) {
             if (this.renderLoop)
