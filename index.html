@@ -32,6 +32,13 @@
     </script>
     <script>
         const transition = new Transition("myCanvas", "./adler.jpg", "./coon.png", "./dis.jpg");
+        const canvas = transition.canvasRef;
+        canvas.addEventListener('click', () => {
+            if (transition.transitionFinished) {
+                return transition.reverse()
+            }
+            transition.start()
+        })
     </script>
 </body>
 

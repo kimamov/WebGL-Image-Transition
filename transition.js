@@ -50,8 +50,7 @@ class Transition {
 
         void main() {
             gl_Position = u_matrix * a_position;
-            //v_texCoord=(a_position.xy * vec2(1.0, -1.0)* .5 + .5);
-            v_texCoord=(a_position.xy* .5 + .5);
+            v_texCoord=a_position.xy* .5 + .5;
         }
     `;
         if (!canvasIndex) {
@@ -71,6 +70,7 @@ class Transition {
         if (!this.gl) {
             throw new TypeError('could not find a valid WebGL Rendering Context');
         }
+        // calc the progress that needs to happen every frame to finish the transition in the set time
         const frameTime = 1000 / 60;
         this.transitionTick = 1 / duration * frameTime;
         this.create([imageOne, imageTwo], displacementImage);
@@ -83,8 +83,6 @@ class Transition {
                 let image = new Image();
                 image.src = element;
                 image.onload = () => {
-                    document.body.appendChild(image);
-                    //imageOutput.push((image))
                     imageOutput[index] = image;
                     imageCreatedCount++;
                     if (imageCreatedCount === imageArray.length) {
@@ -110,9 +108,12 @@ class Transition {
                 this.imageDataArray = loadedImages;
                 this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
                 this.createRenderer(this.imageDataArray, this.displacementImage);
-                this.canvasRef.addEventListener('click', () => {
+                /* this.canvasRef.addEventListener('mouseenter', () => {
                     this.start();
-                });
+                })
+                this.canvasRef.addEventListener('mouseleave', () => {
+                    this.reverse();
+                }) */
             }
             catch (error) {
                 console.dir(error);
@@ -222,12 +223,11 @@ class Transition {
             throw new TypeError('failed to get image');
         const canvasAspect = this.canvasRef.clientWidth / this.canvasRef.clientHeight;
         const imageAspect = image.width / image.height;
-        console.log(canvasAspect, imageAspect);
         let scaleX = imageAspect / canvasAspect;
         let scaleY = 1;
         if (scaleX < 1) {
-            scaleX = 1;
             scaleY = 1 / scaleX;
+            scaleX = 1;
         }
         this.gl.uniformMatrix4fv(this.uMatrix, false, new Float32Array([
             scaleX, 0, 0, 0,
@@ -239,6 +239,18 @@ class Transition {
     render() {
         this.gl.uniform1f(this.uProgressLocation, this.transitionProgress);
         this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+    }
+    start() {
+        this.transitionActive = true;
+        if (this.renderLoop)
+            cancelAnimationFrame(this.renderLoop);
+        this.transitionForwards();
+    }
+    reverse() {
+        this.transitionActive = true;
+        if (this.renderLoop)
+            cancelAnimationFrame(this.renderLoop);
+        this.transitionBackwards();
     }
     transitionForwards() {
         if (this.transitionProgress <= 1.0) {
@@ -262,19 +274,17 @@ class Transition {
             this.transitionFinished = false;
         }
     }
-    start() {
-        if (this.transitionActive)
-            return;
-        if (!this.shaderProgram)
-            throw 'renderer not ready yet';
-        if (this.renderLoop)
-            cancelAnimationFrame(this.renderLoop);
+    /* public start() {
+        //if (this.transitionActive) return;
+        if (!this.shaderProgram) throw 'renderer not ready yet'
+        if (this.renderLoop) cancelAnimationFrame(this.renderLoop);
         this.transitionActive = true;
         if (this.transitionFinished) {
             return this.transitionBackwards();
         }
         this.transitionForwards();
     }
+ */
     destroy() {
         if (this.gl) {
             if (this.renderLoop)
