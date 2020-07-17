@@ -5,7 +5,9 @@ Package for transitioning between 2 images most likely by using a displacement m
 https://jolly-wing-fcb2b3.netlify.app/
 
 # Usage 
-Get the transition.js file and import it via script tag or any other way.
+Get the transition.js file and import it via script tag or any other way.  
+The transition is going to run inside a canvas so create one and set its size.  
+
 
 ```html
 <!DOCTYPE html>
@@ -42,10 +44,14 @@ Get the transition.js file and import it via script tag or any other way.
     </script>
     <script>
         const canvas = document.querySelector('#myCanvas');
+        
         // (canvasElement: HTMLCanvasElement, imageOne: string, imageTwo: string, options: {duration: number, displacementImageSrc: string})
+        
         const transition = new Transition(canvas, "./space1.jpg", "./space2.jpg", {
             duration: 2000
         });
+        // after creating the transition you can use its methods start and reverse in order to run the transition forwards and backwards.
+        // you can call these functions yourself or add them to DOM events
         canvas.addEventListener('click', () => {
             if (transition.transitionFinished) {
                 return transition.reverse()
