@@ -7,7 +7,7 @@ https://jolly-wing-fcb2b3.netlify.app/
 # Usage 
 Get the transition.js file and import it via script tag or any other way.  
 The transition is going to run inside a canvas so create one and set its size.  
-
+If you don't want to get your own displacement texture also get dis.jpg and add it to the same folder.
 
 ```html
 <!DOCTYPE html>
@@ -43,10 +43,12 @@ The transition is going to run inside a canvas so create one and set its size.
 
     </script>
     <script>
+        // select your canvas element
         const canvas = document.querySelector('#myCanvas');
         
-        // (canvasElement: HTMLCanvasElement, imageOne: string, imageTwo: string, options: {duration: number, displacementImageSrc: string})
+        // Transition arguments are (canvasElement: HTMLCanvasElement, imageOne: string, imageTwo: string, options: {duration: number, displacementImageSrc: string})
         
+        // create Transition by passing your canvas element and the 2 pictures you want to transition between
         const transition = new Transition(canvas, "./space1.jpg", "./space2.jpg", {
             duration: 2000
         });
