@@ -3,7 +3,7 @@ class Transition {
     private gl: WebGLRenderingContext;
 
     private displacementImage: HTMLImageElement | null = null;
-    private imageDataArray: HTMLImageElement[] | null = null;
+    private imageDataArray: HTMLImageElement[] = [];
 
     private renderLoop: number | null = null;
     private shaderProgram: WebGLProgram | null = null;
@@ -12,9 +12,13 @@ class Transition {
     // uniforms that can be update inside render
     private uResolutionLocation: any;
     private uProgressLocation: any;
+    private uMatrix: any;
     private uImage0Location: any;
     private uImage1Location: any;
     private uImageDisplaceLocation: any;
+
+    /*  private canvasAspect: number = 1;
+     private imageAspect: number = 1; */
 
     private transitionFinished: boolean = false;
     private transitionActive: boolean = false;
@@ -45,11 +49,13 @@ class Transition {
     private vert: string = `
         precision mediump float;
         attribute vec4 a_position;
+        uniform mat4 u_matrix;
         varying vec2 v_texCoord;
 
         void main() {
-            gl_Position = a_position;
-            v_texCoord=(a_position.xy * vec2(1.0, -1.0)* .5 + .5);
+            gl_Position = u_matrix * a_position;
+            //v_texCoord=(a_position.xy * vec2(1.0, -1.0)* .5 + .5);
+            v_texCoord=(a_position.xy* .5 + .5);
         }
     `
 
@@ -63,14 +69,17 @@ class Transition {
         if (!imageOne || !imageTwo) {
             throw new TypeError('2 images to transition between are required');
         }
+
         this.canvasRef = document.getElementById(canvasIndex) as HTMLCanvasElement;
         if (!this.canvasRef) {
             throw new TypeError('could not find a valid canvas element with your provided canvas index')
         }
+
         this.gl = this.canvasRef.getContext('webgl') as WebGLRenderingContext;
         if (!this.gl) {
             throw new TypeError('could not find a valid WebGL Rendering Context')
         }
+
         const frameTime = 1000 / 60;
         this.transitionTick = 1 / duration * frameTime;
 
@@ -106,6 +115,8 @@ class Transition {
         this.canvasRef.height = this.canvasRef.clientHeight;
     }
 
+
+
     private async create(imageArray: string[], displacementImage: string) {
         try {
             /* set renderer dimensions */
@@ -127,9 +138,6 @@ class Transition {
         }
 
     }
-
-
-
 
     private createRenderer(images: any, displacementImage: any) {
         console.log(this.shaderProgram)
@@ -181,6 +189,9 @@ class Transition {
         // look up resolution uniform location
         this.uResolutionLocation = this.gl.getUniformLocation(this.shaderProgram, "u_resolution");
         this.uProgressLocation = this.gl.getUniformLocation(this.shaderProgram, "u_progress");
+        this.uMatrix = this.gl.getUniformLocation(this.shaderProgram, "u_matrix");
+
+
         // lookup the sampler locations.
         this.uImage0Location = this.gl.getUniformLocation(this.shaderProgram, "u_image0");
         this.uImage1Location = this.gl.getUniformLocation(this.shaderProgram, "u_image1");
@@ -191,6 +202,8 @@ class Transition {
         this.gl.uniform2fv(this.uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
         // set progress to 0
         this.gl.uniform1f(this.uProgressLocation, 0);
+        // set the matrix so the image will be scaled to cover the available space
+        this.updateScaleMode();
         // set which texture units to render with.
         this.gl.uniform1i(this.uImage0Location, 0);  // texture unit 0
         this.gl.uniform1i(this.uImage1Location, 1);  // texture unit 1
@@ -223,12 +236,36 @@ class Transition {
 
         window.onresize = () => {
             if (this.gl) {
-                this.setCanvasDim()
+                this.setCanvasDim();
+                this.updateScaleMode();
                 this.gl.uniform2fv(this.uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
                 this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
+                this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+
             }
         }
 
+    }
+
+    private updateScaleMode() {
+        // function to update the image scaling to cover
+        const image = this.imageDataArray[0];
+        if (!image) throw new TypeError('failed to get image');
+        const canvasAspect = this.canvasRef.clientWidth / this.canvasRef.clientHeight;
+        const imageAspect = image.width / image.height;
+        console.log(canvasAspect, imageAspect)
+        let scaleX = imageAspect / canvasAspect;
+        let scaleY = 1;
+        if (scaleX < 1) {
+            scaleX = 1;
+            scaleY = 1 / scaleX;
+        }
+        this.gl.uniformMatrix4fv(this.uMatrix, false, new Float32Array([
+            scaleX, 0, 0, 0,
+            0, -scaleY, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1,
+        ]))
     }
 
     private render() {
@@ -267,14 +304,14 @@ class Transition {
         this.transitionForwards();
     }
 
-    public destroy = () => {
+    public destroy() {
         if (this.gl) {
             if (this.renderLoop) cancelAnimationFrame(this.renderLoop);
             this.gl.deleteProgram(this.shaderProgram);
         }
     }
 
-    private createShaderProgram = (gl: WebGLRenderingContext, vertexShaderSource: string, fragmentShaderSource: string): WebGLProgram | null => {
+    private createShaderProgram(gl: WebGLRenderingContext, vertexShaderSource: string, fragmentShaderSource: string): WebGLProgram | null {
 
         const vertexShader = this.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource)
         const fragmentShader = this.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource)
@@ -285,7 +322,7 @@ class Transition {
     }
 
 
-    private createShader = (gl: WebGLRenderingContext, type: number, source: string): WebGLShader => {
+    private createShader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader {
         const shader = gl.createShader(type);
         if (!shader) throw 'could not create shader';
         gl.shaderSource(shader, source);
@@ -299,7 +336,7 @@ class Transition {
         throw `could not compile shader: ${info}`
     }
 
-    private createProgram = (gl: WebGLRenderingContext, vertexShader: WebGLShader, fragmentShader: WebGLShader) => {
+    private createProgram(gl: WebGLRenderingContext, vertexShader: WebGLShader, fragmentShader: WebGLShader): WebGLProgram {
         const program = gl.createProgram();
         if (!program) throw 'could not create program';
         gl.attachShader(program, vertexShader);

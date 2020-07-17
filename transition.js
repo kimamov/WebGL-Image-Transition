@@ -11,11 +11,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 class Transition {
     constructor(canvasIndex, imageOne, imageTwo, displacementImage, duration = 1400) {
         this.displacementImage = null;
-        this.imageDataArray = null;
+        this.imageDataArray = [];
         this.renderLoop = null;
         this.shaderProgram = null;
         this.textures = [];
         this.displacementTexture = null;
+        /*  private canvasAspect: number = 1;
+         private imageAspect: number = 1; */
         this.transitionFinished = false;
         this.transitionActive = false;
         this.transitionTick = 1000;
@@ -43,55 +45,15 @@ class Transition {
         this.vert = `
         precision mediump float;
         attribute vec4 a_position;
+        uniform mat4 u_matrix;
         varying vec2 v_texCoord;
 
         void main() {
-            gl_Position = a_position;
-            v_texCoord=(a_position.xy * vec2(1.0, -1.0)* .5 + .5);
+            gl_Position = u_matrix * a_position;
+            //v_texCoord=(a_position.xy * vec2(1.0, -1.0)* .5 + .5);
+            v_texCoord=(a_position.xy* .5 + .5);
         }
     `;
-        this.destroy = () => {
-            if (this.gl) {
-                if (this.renderLoop)
-                    cancelAnimationFrame(this.renderLoop);
-                this.gl.deleteProgram(this.shaderProgram);
-            }
-        };
-        this.createShaderProgram = (gl, vertexShaderSource, fragmentShaderSource) => {
-            const vertexShader = this.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-            const fragmentShader = this.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-            const program = this.createProgram(gl, vertexShader, fragmentShader);
-            return program;
-        };
-        this.createShader = (gl, type, source) => {
-            const shader = gl.createShader(type);
-            if (!shader)
-                throw 'could not create shader';
-            gl.shaderSource(shader, source);
-            gl.compileShader(shader);
-            const succes = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-            if (succes) {
-                return shader;
-            }
-            const info = gl.getShaderInfoLog(shader);
-            gl.deleteShader(shader);
-            throw `could not compile shader: ${info}`;
-        };
-        this.createProgram = (gl, vertexShader, fragmentShader) => {
-            const program = gl.createProgram();
-            if (!program)
-                throw 'could not create program';
-            gl.attachShader(program, vertexShader);
-            gl.attachShader(program, fragmentShader);
-            gl.linkProgram(program);
-            const success = gl.getProgramParameter(program, gl.LINK_STATUS);
-            if (success) {
-                return program;
-            }
-            const info = gl.getProgramInfoLog(program);
-            gl.deleteProgram(program);
-            throw `could not compile shader: ${info}`;
-        };
         if (!canvasIndex) {
             throw new TypeError('id of canvas element is required');
         }
@@ -205,6 +167,7 @@ class Transition {
         // look up resolution uniform location
         this.uResolutionLocation = this.gl.getUniformLocation(this.shaderProgram, "u_resolution");
         this.uProgressLocation = this.gl.getUniformLocation(this.shaderProgram, "u_progress");
+        this.uMatrix = this.gl.getUniformLocation(this.shaderProgram, "u_matrix");
         // lookup the sampler locations.
         this.uImage0Location = this.gl.getUniformLocation(this.shaderProgram, "u_image0");
         this.uImage1Location = this.gl.getUniformLocation(this.shaderProgram, "u_image1");
@@ -214,6 +177,8 @@ class Transition {
         this.gl.uniform2fv(this.uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
         // set progress to 0
         this.gl.uniform1f(this.uProgressLocation, 0);
+        // set the matrix so the image will be scaled to cover the available space
+        this.updateScaleMode();
         // set which texture units to render with.
         this.gl.uniform1i(this.uImage0Location, 0); // texture unit 0
         this.gl.uniform1i(this.uImage1Location, 1); // texture unit 1
@@ -243,10 +208,33 @@ class Transition {
         window.onresize = () => {
             if (this.gl) {
                 this.setCanvasDim();
+                this.updateScaleMode();
                 this.gl.uniform2fv(this.uResolutionLocation, [this.canvasRef.clientWidth, this.canvasRef.clientHeight]);
                 this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
+                this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
             }
         };
+    }
+    updateScaleMode() {
+        // function to update the image scaling to cover
+        const image = this.imageDataArray[0];
+        if (!image)
+            throw new TypeError('failed to get image');
+        const canvasAspect = this.canvasRef.clientWidth / this.canvasRef.clientHeight;
+        const imageAspect = image.width / image.height;
+        console.log(canvasAspect, imageAspect);
+        let scaleX = imageAspect / canvasAspect;
+        let scaleY = 1;
+        if (scaleX < 1) {
+            scaleX = 1;
+            scaleY = 1 / scaleX;
+        }
+        this.gl.uniformMatrix4fv(this.uMatrix, false, new Float32Array([
+            scaleX, 0, 0, 0,
+            0, -scaleY, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1,
+        ]));
     }
     render() {
         this.gl.uniform1f(this.uProgressLocation, this.transitionProgress);
@@ -286,5 +274,47 @@ class Transition {
             return this.transitionBackwards();
         }
         this.transitionForwards();
+    }
+    destroy() {
+        if (this.gl) {
+            if (this.renderLoop)
+                cancelAnimationFrame(this.renderLoop);
+            this.gl.deleteProgram(this.shaderProgram);
+        }
+    }
+    createShaderProgram(gl, vertexShaderSource, fragmentShaderSource) {
+        const vertexShader = this.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+        const fragmentShader = this.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+        const program = this.createProgram(gl, vertexShader, fragmentShader);
+        return program;
+    }
+    createShader(gl, type, source) {
+        const shader = gl.createShader(type);
+        if (!shader)
+            throw 'could not create shader';
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        const succes = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+        if (succes) {
+            return shader;
+        }
+        const info = gl.getShaderInfoLog(shader);
+        gl.deleteShader(shader);
+        throw `could not compile shader: ${info}`;
+    }
+    createProgram(gl, vertexShader, fragmentShader) {
+        const program = gl.createProgram();
+        if (!program)
+            throw 'could not create program';
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        const success = gl.getProgramParameter(program, gl.LINK_STATUS);
+        if (success) {
+            return program;
+        }
+        const info = gl.getProgramInfoLog(program);
+        gl.deleteProgram(program);
+        throw `could not compile shader: ${info}`;
     }
 }
