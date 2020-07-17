@@ -2,6 +2,7 @@ interface TransitionOptions {
     displacementImage?: string
     duration?: number
 }
+// todo add option to fit aspect ratio of image
 
 class Transition {
     public canvasRef: HTMLCanvasElement;
@@ -22,8 +23,8 @@ class Transition {
     /*  private canvasAspect: number = 1;
      private imageAspect: number = 1; */
 
-    private transitionFinished: boolean = false;
-    private transitionActive: boolean = false;
+    transitionFinished: boolean = false;
+    transitionActive: boolean = false;
     private transitionTick: number = 1000;
     private transitionProgress: number = 0;
 
