@@ -1,8 +1,10 @@
 interface TransitionOptions {
     displacementImage?: string
     duration?: number
+
 }
 // todo add option to fit aspect ratio of image
+
 
 class Transition {
     public canvasRef: HTMLCanvasElement;
@@ -61,7 +63,7 @@ class Transition {
         }
     `
 
-    constructor(canvasElement: HTMLCanvasElement, imageOne: any, imageTwo: any, options: TransitionOptions = {}) {
+    constructor(canvasElement: HTMLCanvasElement, imageOne: string, imageTwo: string, options: TransitionOptions = {}) {
         let displacementImage: string;
         if (!canvasElement) {
             throw new TypeError('id of canvas element is required');
@@ -288,6 +290,10 @@ class Transition {
             this.render();
             this.renderLoop = requestAnimationFrame(() => this.transitionForwards());
         } else {
+            // after transition is finished the number will not be exact usually
+            // so set it the to exact value
+            this.transitionProgress = 1.0;
+            this.render();
             this.transitionActive = false
             this.transitionFinished = true;
         }
@@ -298,6 +304,10 @@ class Transition {
             this.render();
             this.renderLoop = requestAnimationFrame(() => this.transitionBackwards());
         } else {
+            // after transition is finished the number will not be exact usually
+            // so set it the to exact value start value
+            this.transitionProgress = 0;
+            this.render();
             this.transitionActive = false
             this.transitionFinished = false;
         }

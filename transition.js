@@ -264,6 +264,10 @@ class Transition {
             this.renderLoop = requestAnimationFrame(() => this.transitionForwards());
         }
         else {
+            // after transition is finished the number will not be exact usually
+            // so set it the to exact value
+            this.transitionProgress = 1.0;
+            this.render();
             this.transitionActive = false;
             this.transitionFinished = true;
         }
@@ -275,6 +279,10 @@ class Transition {
             this.renderLoop = requestAnimationFrame(() => this.transitionBackwards());
         }
         else {
+            // after transition is finished the number will not be exact usually
+            // so set it the to exact value start value
+            this.transitionProgress = 0;
+            this.render();
             this.transitionActive = false;
             this.transitionFinished = false;
         }
