@@ -10,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 // todo add option to fit aspect ratio of image
 class Transition {
-    constructor(canvasElement, imageOne, imageTwo, options = {}) {
+    constructor(canvasElement, imageOne, imageTwo, displacementImage, options = {}) {
         this.renderLoop = null;
         this.shaderProgram = null;
         this.transitionFinished = false;
@@ -48,17 +48,13 @@ class Transition {
             v_texCoord=a_position.xy* .5 + .5;
         }
     `;
-        let displacementImage;
         if (!canvasElement) {
             throw new TypeError('id of canvas element is required');
         }
         // get displacement image from TransitionOptions or use default
-        if (!options.displacementImage) {
-            console.warn('no displacement image provided. Default image will be used but consider adding one for better effects');
-            displacementImage = './dis.jpg';
+        if (!displacementImage) {
+            throw new TypeError('displacement image is required');
         }
-        else
-            displacementImage = options.displacementImage;
         // check if 2 images are provided
         if (!imageOne || !imageTwo) {
             throw new TypeError('2 images to transition between are required');

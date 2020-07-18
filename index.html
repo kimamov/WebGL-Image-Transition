@@ -32,8 +32,16 @@
     </script>
     <script>
         const canvas = document.querySelector('#myCanvas');
-        // (canvasElement: HTMLCanvasElement, imageOne: string, imageTwo: string, options: {duration: number, displacementImageSrc: string})
-        const transition = new Transition(canvas, "space1.jpg", "space2.jpg", {
+        /* 
+            Transition arguments are:
+            (canvasElement: HTMLCanvasElement, 
+            imageOne: string, 
+            imageTwo: string, 
+            displacementImageSrc: string, 
+            options?: {duration?: number}) */
+
+        // everything but options is required
+        const transition = new Transition(canvas, "space1.jpg", "space2.jpg", "dis.jpg", {
             duration: 2000
         });
         canvas.addEventListener('click', () => {

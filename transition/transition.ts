@@ -1,5 +1,4 @@
 interface TransitionOptions {
-    displacementImage?: string
     duration?: number
 
 }
@@ -54,16 +53,20 @@ class Transition {
         }
     `
 
-    constructor(canvasElement: HTMLCanvasElement, imageOne: string, imageTwo: string, options: TransitionOptions = {}) {
-        let displacementImage: string;
+    constructor(
+        canvasElement: HTMLCanvasElement,
+        imageOne: string,
+        imageTwo: string,
+        displacementImage: string,
+        options: TransitionOptions = {}
+    ) {
         if (!canvasElement) {
             throw new TypeError('id of canvas element is required');
         }
         // get displacement image from TransitionOptions or use default
-        if (!options.displacementImage) {
-            console.warn('no displacement image provided. Default image will be used but consider adding one for better effects');
-            displacementImage = './dis.jpg'
-        } else displacementImage = options.displacementImage;
+        if (!displacementImage) {
+            throw new TypeError('displacement image is required');
+        }
         // check if 2 images are provided
         if (!imageOne || !imageTwo) {
             throw new TypeError('2 images to transition between are required');
