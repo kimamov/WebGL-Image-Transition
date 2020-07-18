@@ -57,9 +57,15 @@ If you don't want to get your own displacement texture use also get dis.jpg from
         // everything but options is required
         
         // create Transition by passing your canvas element, the 2 pictures you want to transition between and a displacement image
-        const transition = new Transition(canvas, "./space1.jpg", "./space2.jpg", "dis.jpg",{
-            duration: 2000
-        });
+        const transition = new Transition(
+            canvas,
+            "space1.jpg",
+            "space2.jpg",
+            "dis.jpg",
+            {
+                duration: 1200
+            }
+        );
         // after creating the transition you can use its methods start and reverse in order to run the transition forwards and backwards.
         // you can call these functions yourself or add them to DOM events
         canvas.addEventListener('click', () => {

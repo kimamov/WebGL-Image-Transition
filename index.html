@@ -41,9 +41,15 @@
             options?: {duration?: number}) */
 
         // everything but options is required
-        const transition = new Transition(canvas, "space1.jpg", "space2.jpg", "dis.jpg", {
-            duration: 2000
-        });
+        const transition = new Transition(
+            canvas,
+            "space1.jpg",
+            "space2.jpg",
+            "dis.jpg",
+            {
+                duration: 1200
+            }
+        );
         canvas.addEventListener('click', () => {
             if (transition.transitionFinished) {
                 return transition.reverse()
