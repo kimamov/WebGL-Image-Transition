@@ -49,8 +49,9 @@ class Transition {
         }
     `;
         if (!canvasElement) {
-            throw new TypeError('id of canvas element is required');
+            throw new TypeError('valid canvas element needs to be provided');
         }
+        this.canvasRef = canvasElement;
         // get displacement image from TransitionOptions or use default
         if (!displacementImage) {
             throw new TypeError('displacement image is required');
@@ -58,10 +59,6 @@ class Transition {
         // check if 2 images are provided
         if (!imageOne || !imageTwo) {
             throw new TypeError('2 images to transition between are required');
-        }
-        this.canvasRef = canvasElement;
-        if (!this.canvasRef) {
-            throw new TypeError('could not find a valid canvas element with your provided canvas index');
         }
         this.gl = this.canvasRef.getContext('webgl');
         if (!this.gl) {
