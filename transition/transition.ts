@@ -62,7 +62,7 @@ class Transition {
         // get displacement image from TransitionOptions or use default
         if (!options.displacementImage) {
             console.warn('no displacement image provided. Default image will be used but consider adding one for better effects');
-            displacementImage = './transition/dis.jpg'
+            displacementImage = './dis.jpg'
         } else displacementImage = options.displacementImage;
         // check if 2 images are provided
         if (!imageOne || !imageTwo) {
