@@ -8,6 +8,7 @@ https://jolly-wing-fcb2b3.netlify.app/
 Get the transition.js file or the entire transtion folder and import it via script tag or any other way.  
 The transition is going to run inside a canvas so create one and set its size.  
 If you don't want to use your own displacement texture you can get dis.jpg from the repo.
+It is highly recommended that both images have the same aspect ratio to avoid stretching.
 
 ```html
 <!DOCTYPE html>
