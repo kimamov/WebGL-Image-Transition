@@ -50,9 +50,9 @@ It is highly recommended that both images have the same aspect ratio to avoid st
         /* 
             Transition arguments are:
             (canvasElement: HTMLCanvasElement, 
-            imageOne: string, 
-            imageTwo: string, 
-            displacementImageSrc: string, 
+            imageOne: string | HTMLImageElement, 
+            imageTwo: string | HTMLImageElement, 
+            displacementImageSrc: string | HTMLImageElement, 
             options?: {duration?: number}) */
 
         // everything but options is required
@@ -60,7 +60,7 @@ It is highly recommended that both images have the same aspect ratio to avoid st
         // create Transition by passing your canvas element, the 2 pictures you want to transition between and a displacement image
         const transition = new Transition(
             canvas,
-            "space1.jpg",
+            "space1.jpg", 
             "space2.jpg",
             "dis.jpg",
             {

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    html,
+    body {
+        margin: 0;
+        height: 100vh;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    #myCanvas {
+        display: block;
+        height: 100%;
+        width: 100%;
+        margin: 0;
+    }
+</style>
+
+<body>
+    <canvas id="myCanvas"></canvas>
+    <img id="imgOne" src="space1.jpg" alt="">
+    <script src="./transition/transition.js"></script>
+    <script>
+        function createCanvas(){
+            const canvas = document.querySelector('#myCanvas');
+            const img1=document.querySelector('#imgOne');
+            const transition = new Transition(
+                canvas,
+                img1,
+                "space2.jpg",
+                "dis.jpg",
+                {
+                    duration: 1200
+                }
+            );
+            canvas.addEventListener('click', () => {
+                if (transition.transitionFinished) {
+                    return transition.reverse()
+                }
+                transition.start()
+            })
+        }
+        createCanvas()
+        
+    </script>
+</body>
+
+</html>

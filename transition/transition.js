@@ -76,16 +76,41 @@ class Transition {
             let imageCreatedCount = 0;
             let imageOutput = [];
             imageArray.forEach((element, index) => {
-                let image = new Image();
-                image.src = element;
-                image.onload = () => {
-                    imageOutput[index] = image;
-                    imageCreatedCount++;
-                    if (imageCreatedCount === imageArray.length) {
-                        resolve(imageOutput);
+                if (typeof element === 'string') {
+                    // if image is provided by string src create image element and load it that way
+                    let image = new Image();
+                    image.src = element;
+                    image.onload = () => {
+                        imageOutput[index] = image;
+                        imageCreatedCount++;
+                        if (imageCreatedCount === imageArray.length) {
+                            resolve(imageOutput);
+                        }
+                    };
+                    image.onerror = () => reject('could not load image: ' + element);
+                }
+                else if (element.src) {
+                    // if element is a valid image elemtn
+                    if (element.complete) {
+                        // if image data was already loaded just pass down the element
+                        imageOutput[index] = element;
+                        imageCreatedCount++;
+                        if (imageCreatedCount === imageArray.length) {
+                            resolve(imageOutput);
+                        }
                     }
-                };
-                image.onerror = () => reject('could not load image: ' + element);
+                    else {
+                        // if image data was not loaded yet wait for it to load and handle errors that might happen
+                        element.onload = () => {
+                            imageOutput[index] = element;
+                            imageCreatedCount++;
+                            if (imageCreatedCount === imageArray.length) {
+                                resolve(imageOutput);
+                            }
+                        };
+                        element.onerror = () => reject('could not load image: ' + element.src);
+                    }
+                }
             });
         });
     }

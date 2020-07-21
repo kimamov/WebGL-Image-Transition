@@ -86,21 +86,47 @@ class Transition {
         this.create([imageOne, imageTwo], displacementImage);
     }
 
-    private loadImages(imageArray: string[]): Promise<HTMLImageElement[]> {
+    private loadImages(imageArray: string[] | HTMLImageElement[]): Promise<HTMLImageElement[]> {
         return new Promise((resolve, reject) => {
             let imageCreatedCount = 0;
             let imageOutput: HTMLImageElement[] = [];
-            imageArray.forEach((element, index) => {
-                let image = new Image();
-                image.src = element;
-                image.onload = () => {
-                    imageOutput[index] = image;
-                    imageCreatedCount++;
-                    if (imageCreatedCount === imageArray.length) {
-                        resolve(imageOutput)
+
+            imageArray.forEach((element: string | HTMLImageElement, index: number) => {
+                if(typeof element === 'string'){
+                    // if image is provided by string src create image element and load it that way
+                    let image = new Image();
+                    image.src = element;
+                    image.onload = () => {
+                        imageOutput[index] = image;
+                        imageCreatedCount++;
+                        if (imageCreatedCount === imageArray.length) {
+                            resolve(imageOutput)
+                        }
+                    }
+                    image.onerror = () => reject('could not load image: ' + element)
+                }
+                else if(typeof element==='object' && element.src){
+                    // if element is a valid image elemtn
+                    if(element.complete){
+                        // if image data was already loaded just pass down the element
+                        imageOutput[index] = element;
+                        imageCreatedCount++;
+                        if (imageCreatedCount === imageArray.length) {
+                            resolve(imageOutput)
+                        }
+                    }else{
+                        // if image data was not loaded yet wait for it to load and handle errors that might happen
+                        element.onload = () => {
+                            imageOutput[index] = element;
+                            imageCreatedCount++;
+                            if (imageCreatedCount === imageArray.length) {
+                                resolve(imageOutput)
+                            }
+                        }
+                        element.onerror = () => reject('could not load image: ' + element.src)
                     }
                 }
-                image.onerror = () => reject('could not load image: ' + element)
+                
             })
         })
 
