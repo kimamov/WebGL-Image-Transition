@@ -53,7 +53,8 @@ It is highly recommended that both images have the same aspect ratio to avoid st
             imageOne: string | HTMLImageElement, 
             imageTwo: string | HTMLImageElement, 
             displacementImageSrc: string | HTMLImageElement, 
-            options?: {duration?: number}) */
+            options?: {duration?: number}) 
+        */
 
         // everything but options is required
         

@@ -27,18 +27,19 @@
 
 <body>
     <canvas id="myCanvas"></canvas>
-    <script src="./transition/transition.js">
-
-    </script>
+    
+    <script src="./transition/transition.js"></script>
     <script>
         const canvas = document.querySelector('#myCanvas');
+
         /* 
             Transition arguments are:
             (canvasElement: HTMLCanvasElement, 
-            imageOne: string, 
-            imageTwo: string, 
-            displacementImageSrc: string, 
-            options?: {duration?: number}) */
+            imageOne: string | HTMLImageElement, 
+            imageTwo: string | HTMLImageElement, 
+            displacementImageSrc: string | HTMLImageElement, 
+            options?: {duration?: number}) 
+        */
 
         // everything but options is required
         const transition = new Transition(

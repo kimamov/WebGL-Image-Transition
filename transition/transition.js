@@ -76,10 +76,25 @@ class Transition {
             let imageCreatedCount = 0;
             let imageOutput = [];
             imageArray.forEach((element, index) => {
+                let image;
                 if (typeof element === 'string') {
                     // if image is provided by string src create image element and load it that way
-                    let image = new Image();
+                    image = new Image();
                     image.src = element;
+                }
+                else if (element instanceof HTMLImageElement) {
+                    // if element is a valid image element just pass that instead of creating one
+                    image = element;
+                }
+                else
+                    return reject('could not load image: ' + element);
+                if (image.complete) {
+                    // if image data was already loaded just pass down the element
+                    imageOutput[index] = image;
+                    imageCreatedCount++;
+                }
+                else {
+                    // if image data was not loaded yet wait for it to load and handle errors that might happen
                     image.onload = () => {
                         imageOutput[index] = image;
                         imageCreatedCount++;
@@ -87,29 +102,10 @@ class Transition {
                             resolve(imageOutput);
                         }
                     };
-                    image.onerror = () => reject('could not load image: ' + element);
+                    image.onerror = () => reject('could not load image: ' + image.src);
                 }
-                else if (element.src) {
-                    // if element is a valid image elemtn
-                    if (element.complete) {
-                        // if image data was already loaded just pass down the element
-                        imageOutput[index] = element;
-                        imageCreatedCount++;
-                        if (imageCreatedCount === imageArray.length) {
-                            resolve(imageOutput);
-                        }
-                    }
-                    else {
-                        // if image data was not loaded yet wait for it to load and handle errors that might happen
-                        element.onload = () => {
-                            imageOutput[index] = element;
-                            imageCreatedCount++;
-                            if (imageCreatedCount === imageArray.length) {
-                                resolve(imageOutput);
-                            }
-                        };
-                        element.onerror = () => reject('could not load image: ' + element.src);
-                    }
+                if (imageCreatedCount === imageArray.length) {
+                    resolve(imageOutput);
                 }
             });
         });
@@ -128,6 +124,7 @@ class Transition {
                 const displacementImage = loadedImages.pop();
                 const images = loadedImages;
                 this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
+                console.log("reac");
                 this.createRenderer(images, displacementImage);
             }
             catch (error) {
