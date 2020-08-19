@@ -6,8 +6,9 @@ interface TransitionOptions {
 
 
 class Transition {
-    public canvasRef: HTMLCanvasElement;
-    private gl: WebGLRenderingContext;
+    public container: HTMLElement;
+    public canvasRef!: HTMLCanvasElement;
+    private gl!: WebGLRenderingContext;
 
     private renderLoop: number | null = null;
     private shaderProgram: WebGLProgram | null = null;
@@ -54,17 +55,17 @@ class Transition {
     `
 
     constructor(
-        canvasElement: HTMLCanvasElement,
+        container: HTMLElement,
         imageOne: string,
         imageTwo: string,
         displacementImage: string,
         options: TransitionOptions = {}
     ) {
         
-        if (!canvasElement) {
-            throw new TypeError('valid canvas element needs to be provided')
+        if (!container) {
+            throw new TypeError('valid container element needs to be provided')
         }
-        this.canvasRef = canvasElement;
+        this.container = container;
         // get displacement image from TransitionOptions or use default
         if (!displacementImage) {
             throw new TypeError('displacement image is required');
@@ -75,10 +76,7 @@ class Transition {
         }
 
 
-        this.gl = this.canvasRef.getContext('webgl') as WebGLRenderingContext;
-        if (!this.gl) {
-            throw new TypeError('could not find a valid WebGL Rendering Context')
-        }
+        
         // calc the progress that needs to happen every frame to finish the transition in the set time
         let duration = options.duration || 1200; // if no duration is provided take 1200ms / 1.2 seconds
         const frameTime = 1000 / 60;
@@ -133,16 +131,32 @@ class Transition {
         this.canvasRef.height = this.canvasRef.clientHeight;
     }
 
+    private createGlContext(container: HTMLElement) {
+        const canvas=document.createElement("canvas");
+        this.canvasRef=canvas;
+        this.canvasRef.style.height="100%"
+        this.canvasRef.style.width="100%"
+        this.canvasRef.style.display="block"
+        this.gl = this.canvasRef.getContext('webgl') as WebGLRenderingContext;
+        if (!this.gl) {
+            throw new TypeError('could not find a valid WebGL Rendering Context')
+        }
+        container.appendChild(canvas);
+    }   
+
     private async create(imagesSrc: string[], displacementImageSrc: string) {
         try {
-            /* set renderer dimensions */
-            this.setCanvasDim();
+            
 
             const extendedImageArray = [...imagesSrc, displacementImageSrc];
             const loadedImages = await this.loadImages(extendedImageArray);
             const displacementImage = loadedImages.pop() as HTMLImageElement;
             const images = loadedImages;
-
+            // once all the images are successfully loaded create the canvas and its webGL context
+            this.createGlContext(this.container);
+            /* set renderer dimensions */
+            this.setCanvasDim();
+            
             this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
 
             this.createRenderer(images, displacementImage);

@@ -10,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 // todo add option to fit aspect ratio of image
 class Transition {
-    constructor(canvasElement, imageOne, imageTwo, displacementImage, options = {}) {
+    constructor(container, imageOne, imageTwo, displacementImage, options = {}) {
         this.renderLoop = null;
         this.shaderProgram = null;
         this.transitionFinished = false;
@@ -48,10 +48,10 @@ class Transition {
             v_texCoord=a_position.xy* .5 + .5;
         }
     `;
-        if (!canvasElement) {
-            throw new TypeError('valid canvas element needs to be provided');
+        if (!container) {
+            throw new TypeError('valid container element needs to be provided');
         }
-        this.canvasRef = canvasElement;
+        this.container = container;
         // get displacement image from TransitionOptions or use default
         if (!displacementImage) {
             throw new TypeError('displacement image is required');
@@ -59,10 +59,6 @@ class Transition {
         // check if 2 images are provided
         if (!imageOne || !imageTwo) {
             throw new TypeError('2 images to transition between are required');
-        }
-        this.gl = this.canvasRef.getContext('webgl');
-        if (!this.gl) {
-            throw new TypeError('could not find a valid WebGL Rendering Context');
         }
         // calc the progress that needs to happen every frame to finish the transition in the set time
         let duration = options.duration || 1200; // if no duration is provided take 1200ms / 1.2 seconds
@@ -114,17 +110,30 @@ class Transition {
         this.canvasRef.width = this.canvasRef.clientWidth;
         this.canvasRef.height = this.canvasRef.clientHeight;
     }
+    createGlContext(container) {
+        const canvas = document.createElement("canvas");
+        this.canvasRef = canvas;
+        this.canvasRef.style.height = "100%";
+        this.canvasRef.style.width = "100%";
+        this.canvasRef.style.display = "block";
+        this.gl = this.canvasRef.getContext('webgl');
+        if (!this.gl) {
+            throw new TypeError('could not find a valid WebGL Rendering Context');
+        }
+        container.appendChild(canvas);
+    }
     create(imagesSrc, displacementImageSrc) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                /* set renderer dimensions */
-                this.setCanvasDim();
                 const extendedImageArray = [...imagesSrc, displacementImageSrc];
                 const loadedImages = yield this.loadImages(extendedImageArray);
                 const displacementImage = loadedImages.pop();
                 const images = loadedImages;
+                // once all the images are successfully loaded create the canvas and its webGL context
+                this.createGlContext(this.container);
+                /* set renderer dimensions */
+                this.setCanvasDim();
                 this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
-                console.log("reac");
                 this.createRenderer(images, displacementImage);
             }
             catch (error) {
