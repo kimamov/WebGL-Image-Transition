@@ -132,22 +132,24 @@ class Transition {
     }
 
     private createGlContext(container: HTMLElement) {
+        // create canvas to render to
         const canvas=document.createElement("canvas");
         this.canvasRef=canvas;
+        // set its size to fill the container
         this.canvasRef.style.height="100%"
         this.canvasRef.style.width="100%"
         this.canvasRef.style.display="block"
+        // get the gl context
         this.gl = this.canvasRef.getContext('webgl') as WebGLRenderingContext;
         if (!this.gl) {
             throw new TypeError('could not find a valid WebGL Rendering Context')
         }
+        // insert canvas into the container
         container.appendChild(canvas);
     }   
 
     private async create(imagesSrc: string[], displacementImageSrc: string) {
         try {
-            
-
             const extendedImageArray = [...imagesSrc, displacementImageSrc];
             const loadedImages = await this.loadImages(extendedImageArray);
             const displacementImage = loadedImages.pop() as HTMLImageElement;
@@ -160,7 +162,6 @@ class Transition {
             this.shaderProgram = this.createShaderProgram(this.gl, this.vert, this.frag);
 
             this.createRenderer(images, displacementImage);
-
         } catch (error) {
             console.dir(error)
         }

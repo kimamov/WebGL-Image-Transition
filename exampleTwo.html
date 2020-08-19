@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    html,
+    body {
+        margin: 0;
+        height: 100vh;
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+    }
+
+    #transitionContainer {
+        display: block;
+        margin: 0;
+        overflow: hidden;
+        border-radius: 0.6rem;
+        flex: 1;
+        max-width: 100%;
+        flex-basis: 20rem;
+        min-height: 20rem;
+        height: 100%;
+    }
+    .container{
+        margin: 0 auto;
+        max-width: 80rem;
+        width: 98%;
+    }   
+    #intro{
+        display: flex;
+        flex-wrap: wrap;
+        height: 30rem;
+        padding: 4rem 0;
+        align-items: center;
+        justify-content: center;
+    }
+    #welcomeText{
+        padding: 4rem;
+        max-width: 100%;
+        flex-basis: 32rem;
+    }
+    h1{
+        font-size: 2.2rem;
+        margin: 0.2rem 0;
+    }
+    #createOwn{
+        margin-top: 2rem;
+        padding: 2rem 0;
+        background-color: lightgray;
+    }
+    #createOwn>h2{
+        margin-bottom: 4rem;
+    }
+</style>
+
+<body>
+    <main>
+        <section id="intro" class="container">
+            <div id="transitionContainer">
+                <img id="imgOne" src="space1.jpg" alt="im1" hidden>
+                <img id="imgTwo" src="space2.jpg" alt="im1" hidden>
+            </div>
+            <div id="welcomeText">
+                <h1>
+                    WebGL Image Transition
+                </h1>
+                <h2>
+                    try it by clicking the image
+                </h2>
+            </div>
+            
+        </section>
+        <section id="createOwn" class="container">
+            <h1>create your own transition</h1>
+            <h2>select 2 images to transition between and a third to use as displacement</h2>
+            <div id="selectImageTop" class="imageUpload">
+                <label>
+                    top image
+                    <input type="file" id="topImageUpload">
+                </label>
+            </div>
+            <div id="selectImageBottom" class="imageUpload" hidden>
+                <label>
+                    bottom image
+                    <input type="file" id="bottomImageUpload">
+                </label>
+            </div>
+            <div id="selectDisplacement" class="imageUpload" hidden>
+                <label>
+                    displacement image
+                    <input type="file" id="displacementUpload">
+                </label>
+            </div>
+        </section>
+    </main>
+    
+    <script src="./transition/transition.js"></script>
+    <script>
+        function createTransition(){
+            const container = document.querySelector('#transitionContainer');
+            const img1=document.querySelector('#imgOne');
+            const transition = new Transition(
+                container,
+                img1,
+                document.querySelector('#imgTwo'),
+                "dis.jpg",
+                {
+                    duration: 1200
+                }
+            );
+            container.addEventListener('click', () => {
+                if (transition.transitionFinished) {
+                    return transition.reverse()
+                }
+                transition.start()
+            })
+        }
+        createTransition()
+        
+    </script>
+</body>
+
+</html>
