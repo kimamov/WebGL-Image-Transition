@@ -17,8 +17,7 @@
         box-sizing: border-box;
     }
 
-    #myCanvas {
-        display: block;
+    #myContainer {
         height: 100%;
         width: 100%;
         margin: 0;
@@ -26,15 +25,15 @@
 </style>
 
 <body>
-    <canvas id="myCanvas"></canvas>
+    <canvas id="myContainer"></canvas>
     
     <script src="./transition/transition.js"></script>
     <script>
-        const canvas = document.querySelector('#myCanvas');
+        const container = document.querySelector('#myContainer');
 
         /* 
             Transition arguments are:
-            (canvasElement: HTMLCanvasElement, 
+            (container: HTMLElement, 
             imageOne: string | HTMLImageElement, 
             imageTwo: string | HTMLImageElement, 
             displacementImageSrc: string | HTMLImageElement, 
@@ -51,7 +50,7 @@
                 duration: 1200
             }
         );
-        canvas.addEventListener('click', () => {
+        container.addEventListener('click', () => {
             if (transition.transitionFinished) {
                 return transition.reverse()
             }

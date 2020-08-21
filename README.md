@@ -30,8 +30,7 @@ It is highly recommended that both images have the same aspect ratio to avoid st
         box-sizing: border-box;
     }
 
-    #myCanvas {
-        display: block;
+    #myContainer {
         height: 100%;
         width: 100%;
         margin: 0;
@@ -39,17 +38,17 @@ It is highly recommended that both images have the same aspect ratio to avoid st
 </style>
 
 <body>
-    <canvas id="myCanvas"></canvas>
+    <div id="myContainer"></div>
     <script src="transition.js">
 
     </script>
     <script>
-        // select your canvas element
-        const canvas = document.querySelector('#myCanvas');
+        // select your container element
+        const container = document.querySelector('#myContainer');
         
         /* 
             Transition arguments are:
-            (canvasElement: HTMLCanvasElement, 
+            (container: HTMLElement, 
             imageOne: string | HTMLImageElement, 
             imageTwo: string | HTMLImageElement, 
             displacementImageSrc: string | HTMLImageElement, 
@@ -58,9 +57,9 @@ It is highly recommended that both images have the same aspect ratio to avoid st
 
         // everything but options is required
         
-        // create Transition by passing your canvas element, the 2 pictures you want to transition between and a displacement image
+        // create Transition by passing your container element, the 2 pictures you want to transition between and a displacement image
         const transition = new Transition(
-            canvas,
+            container,
             "space1.jpg", 
             "space2.jpg",
             "dis.jpg",
@@ -70,7 +69,7 @@ It is highly recommended that both images have the same aspect ratio to avoid st
         );
         // after creating the transition you can use its methods start and reverse in order to run the transition forwards and backwards.
         // you can call these functions yourself or add them to DOM events
-        canvas.addEventListener('click', () => {
+        container.addEventListener('click', () => {
             // if transition is finished click will reverse it
             if (transition.transitionFinished) {
                 return transition.reverse()
