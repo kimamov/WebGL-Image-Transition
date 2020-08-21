@@ -109,6 +109,7 @@ class Transition {
     setCanvasDim() {
         this.canvasRef.width = this.container.clientWidth;
         this.canvasRef.height = this.container.clientHeight;
+        console.log(this.container.clientHeight);
     }
     createGlContext(container) {
         // create canvas to render to
