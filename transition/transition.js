@@ -107,19 +107,25 @@ class Transition {
         });
     }
     setCanvasDim() {
-        this.canvasRef.width = this.canvasRef.clientWidth;
-        this.canvasRef.height = this.canvasRef.clientHeight;
+        this.canvasRef.width = this.container.clientWidth;
+        this.canvasRef.height = this.container.clientHeight;
     }
     createGlContext(container) {
+        // create canvas to render to
         const canvas = document.createElement("canvas");
         this.canvasRef = canvas;
+        // set its size to fill the container
         this.canvasRef.style.height = "100%";
         this.canvasRef.style.width = "100%";
         this.canvasRef.style.display = "block";
+        // get the gl context
         this.gl = this.canvasRef.getContext('webgl');
         if (!this.gl) {
             throw new TypeError('could not find a valid WebGL Rendering Context');
         }
+        // clear all the content inside the container
+        container.innerHTML = "";
+        // insert canvas into the container
         container.appendChild(canvas);
     }
     create(imagesSrc, displacementImageSrc) {

@@ -127,8 +127,8 @@ class Transition {
     }
 
     private setCanvasDim() {
-        this.canvasRef.width = this.canvasRef.clientWidth;
-        this.canvasRef.height = this.canvasRef.clientHeight;
+        this.canvasRef.width = this.container.clientWidth;
+        this.canvasRef.height = this.container.clientHeight;
     }
 
     private createGlContext(container: HTMLElement) {
@@ -144,6 +144,8 @@ class Transition {
         if (!this.gl) {
             throw new TypeError('could not find a valid WebGL Rendering Context')
         }
+        // clear all the content inside the container
+        container.innerHTML=""
         // insert canvas into the container
         container.appendChild(canvas);
     }   
