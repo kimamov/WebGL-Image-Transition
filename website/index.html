@@ -62,7 +62,6 @@
         margin: 0 auto;
         max-width: 100%;
         height: auto;
-        width: 20rem;
         border-radius: 0.4rem;
         overflow: hidden;
     }
@@ -84,11 +83,18 @@
     .imageUpload input{
         margin: 0.4rem 0;
     }
+    #ownTransitionSection{
+        margin-top: 4rem;
+        padding: 2rem 0;
+        background-color: lightgray;
+    }
     #ownTransitionContainer{
         height: 20rem;
         width: 35rem;
         max-width: 100%;
-        margin: 1rem auto;
+        margin: 0 auto;
+        border-radius: 0.2rem;
+        overflow: hidden;
     }
     #createButton{
         padding: 0.8rem 1rem;
@@ -144,14 +150,16 @@
                         displacement image
                     </label>
                     <input type="file" id="displacementUpload" accept="image/*">
-                    <img class="previewImage" id="displacementPreview" hidden>
+                    <img src="dis.jpg" class="previewImage" id="displacementPreview">
                 </div>
             </div>
             <button id="createButton" hidden>
                 create transition
             </button>
-            <div id="ownTransitionContainer" hidden>
+            <div id="ownTransitionSection">
+                <div id="ownTransitionContainer" hidden>
 
+                </div>
             </div>
         </section>
     </main>
@@ -236,6 +244,8 @@
                 }
                 transition.start()
             })
+            window.scrollTo(0, document.body.scrollHeight-document.body.clientHeight)
+
         })
     </script>
 </body>
