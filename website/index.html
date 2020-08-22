@@ -30,7 +30,7 @@
     }
     .container{
         margin: 0 auto;
-        max-width: 80rem;
+        max-width: 82em;
         width: 98%;
     }   
     #intro{
@@ -44,17 +44,26 @@
     #welcomeText{
         padding: 4rem;
         max-width: 100%;
-        flex-basis: 32rem;
+        flex-basis: 36rem;
     }
     h1{
-        font-size: 2.2rem;
+        font-size: 2.4rem;
         margin: 0.2rem 0;
+    }
+    h2{
+        font-size: 1.6rem;
+    }
+    li, p{
+        font-size: 1.4rem;
     }
     #createOwn{
         margin-top: 2rem;
         padding: 2rem 0;
     }
     #createOwn>h2{
+        margin-bottom: 0.8rem;
+    }
+    #createOwn>ul{
         margin-bottom: 4rem;
     }
     .previewImage{
@@ -86,7 +95,7 @@
     #ownTransitionSection{
         margin-top: 4rem;
         padding: 2rem 0;
-        background-color: lightgray;
+        background-color: rgb(236, 236, 236);
     }
     #ownTransitionContainer{
         height: 20rem;
@@ -108,6 +117,13 @@
         text-align: center;
         text-transform: uppercase;
     }
+    a{
+        display: inline-block;
+        font-weight: bold;
+        font-size: 1.4rem;
+        margin: 1rem 0;
+        padding: 0.2rem 0.4rem;
+    }
 </style>
 
 <body>
@@ -127,9 +143,24 @@
             </div>
             
         </section>
+        
         <section id="createOwn" class="container">
             <h1>create your own transition</h1>
             <h2>select 2 images to transition between and a third to use as displacement</h2>
+            <ul>
+                <li>
+                    top and bottom image should have the same aspect ratio to prevent stretching
+                </li>
+                <li>
+                    a default displacement image is provided but feel free to use your own
+                </li>
+                <li>
+                    the create transition button will be visible once you selected 3 images
+                </li>
+                <li>
+                    you can update your transition by selecting another image and clicking the button again
+                </li>
+            </ul>
             <div class="flexContainer">
                 <div id="selectImageTop" class="imageUpload">
                     <label for="topImageUpload">
@@ -161,6 +192,9 @@
 
                 </div>
             </div>
+            <a target="_blank" href="https://github.com/kantimam/WebGL-Image-Transition">
+                code on Github
+            </a>
         </section>
     </main>
     
