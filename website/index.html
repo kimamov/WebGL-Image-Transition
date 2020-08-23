@@ -10,8 +10,9 @@
     html,
     body {
         margin: 0;
-        height: 100vh;
+        overflow-x: hidden;
     }
+    
 
     * {
         box-sizing: border-box;
@@ -27,11 +28,12 @@
         max-width: 100%;
         flex-basis: 20rem;
         height: 24rem;
+        max-width: 100%;
     }
     .container{
         margin: 0 auto;
         max-width: 82em;
-        width: 98%;
+        width: 94%;
     }   
     #intro{
         display: flex;
@@ -40,11 +42,13 @@
         padding: 4rem 0;
         align-items: center;
         justify-content: center;
+        max-width: 100%;
     }
     #welcomeText{
         padding: 4rem;
         max-width: 100%;
         flex-basis: 36rem;
+        max-width: 100%;
     }
     h1{
         font-size: 2.4rem;
@@ -76,14 +80,18 @@
     }
     .flexContainer{
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
         grid-gap: 0.4rem;
         margin-bottom: 2rem;
+        max-width: 100%;
+
     }
     .imageUpload{
         border: 1px solid black;
         padding: 0.4rem 0.2rem;
         border-radius: 0.4rem;
+        max-width: 100%;
+
     }
     .imageUpload label{
         font-weight: bold;
